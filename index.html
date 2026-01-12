@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conv2d Convolution Visualization</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e8e8e8;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 15px 25px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-bottom: 8px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .control-group .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #00d4ff;
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        input[type="range"] {
+            width: 120px;
+            margin-top: 8px;
+            accent-color: #7b2cbf;
+        }
+
+        .visualization {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 60px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+
+        .grid-container {
+            text-align: center;
+        }
+
+        .grid-label {
+            font-size: 1rem;
+            margin-bottom: 10px;
+            color: #ccc;
+        }
+
+        .grid-size {
+            font-family: 'JetBrains Mono', monospace;
+            color: #00d4ff;
+            font-size: 0.9rem;
+            margin-top: 8px;
+        }
+
+        .grid {
+            display: inline-grid;
+            gap: 2px;
+            background: rgba(0,0,0,0.3);
+            padding: 3px;
+            border-radius: 8px;
+        }
+
+        .cell {
+            width: 12px;
+            height: 12px;
+            background: #2a2a4a;
+            border-radius: 2px;
+            transition: all 0.2s ease;
+        }
+
+        .cell.padded {
+            background: #1a1a3a;
+            border: 1px dashed #444;
+        }
+
+        .cell.kernel {
+            background: #e94560;
+            box-shadow: 0 0 10px rgba(233, 69, 96, 0.5);
+        }
+
+        .cell.output-highlight {
+            background: #00d4ff;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .arrow {
+            font-size: 3rem;
+            color: #7b2cbf;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        .formula-box {
+            background: rgba(0,0,0,0.4);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(123, 44, 191, 0.3);
+        }
+
+        .formula-title {
+            font-size: 1rem;
+            color: #7b2cbf;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .formula {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem;
+            color: #fff;
+            text-align: center;
+            line-height: 2;
+        }
+
+        .formula .highlight {
+            color: #00d4ff;
+            font-weight: 700;
+        }
+
+        .formula .result {
+            color: #4ade80;
+            font-weight: 700;
+        }
+
+        .explanation {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 25px;
+            border-left: 4px solid #e94560;
+        }
+
+        .explanation h3 {
+            color: #e94560;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .explanation ul {
+            list-style: none;
+            line-height: 2;
+        }
+
+        .explanation li::before {
+            content: "→ ";
+            color: #00d4ff;
+        }
+
+        .step-animation {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .step-btn {
+            background: linear-gradient(135deg, #7b2cbf, #e94560);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.9rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .step-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(123, 44, 191, 0.4);
+        }
+
+        .step-info {
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            color: #888;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Conv2d Convolution Visualization</h1>
+        <p class="subtitle">nn.Conv2d(in_channels=3, out_channels=64, kernel_size, stride, padding)</p>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>kernel_size</label>
+                <div class="value" id="kernelValue">3</div>
+                <input type="range" id="kernelSize" min="1" max="7" value="3" step="2">
+            </div>
+            <div class="control-group">
+                <label>stride</label>
+                <div class="value" id="strideValue">2</div>
+                <input type="range" id="stride" min="1" max="4" value="2">
+            </div>
+            <div class="control-group">
+                <label>padding</label>
+                <div class="value" id="paddingValue">1</div>
+                <input type="range" id="padding" min="0" max="3" value="1">
+            </div>
+        </div>
+
+        <div class="step-animation">
+            <button class="step-btn" id="playBtn">▶ Play Animation</button>
+            <button class="step-btn" id="resetBtn">↺ Reset</button>
+        </div>
+        <div class="step-info" id="stepInfo">Click play to watch the kernel slide across the input</div>
+
+        <div class="visualization">
+            <div class="grid-container">
+                <div class="grid-label">📥 Input (with Padding)</div>
+                <div class="grid" id="inputGrid"></div>
+                <div class="grid-size" id="inputSize">8×8 (original) + padding</div>
+            </div>
+            
+            <div class="arrow">→</div>
+            
+            <div class="grid-container">
+                <div class="grid-label">📤 Output</div>
+                <div class="grid" id="outputGrid"></div>
+                <div class="grid-size" id="outputSize">?×?</div>
+            </div>
+        </div>
+
+        <div class="formula-box">
+            <div class="formula-title">📐 Output Size Formula</div>
+            <div class="formula" id="formula">
+                Output = ⌊(<span class="highlight">64</span> - <span class="highlight">3</span> + 2×<span class="highlight">1</span>) / <span class="highlight">2</span>⌋ + 1 = <span class="result">32</span>
+            </div>
+        </div>
+
+        <div class="explanation">
+            <h3>💡 Why does larger kernel_size produce smaller output?</h3>
+            <ul>
+                <li><strong>Kernel</strong> is a sliding window that moves across the input image</li>
+                <li>Each position the kernel covers produces <strong>exactly 1</strong> output value</li>
+                <li>Larger kernel = fewer positions it can fit = smaller output</li>
+                <li><strong>Stride</strong> controls how many pixels to move each step; larger stride = smaller output</li>
+                <li><strong>Padding</strong> adds zeros around the edges, which increases output size</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const inputGridEl = document.getElementById('inputGrid');
+        const outputGridEl = document.getElementById('outputGrid');
+        const kernelSlider = document.getElementById('kernelSize');
+        const strideSlider = document.getElementById('stride');
+        const paddingSlider = document.getElementById('padding');
+        const kernelValue = document.getElementById('kernelValue');
+        const strideValue = document.getElementById('strideValue');
+        const paddingValue = document.getElementById('paddingValue');
+        const inputSizeEl = document.getElementById('inputSize');
+        const outputSizeEl = document.getElementById('outputSize');
+        const formulaEl = document.getElementById('formula');
+        const stepInfoEl = document.getElementById('stepInfo');
+
+        const INPUT_SIZE = 8; // Small size for visualization (actual is 64)
+        const REAL_INPUT_SIZE = 64;
+        let animationInterval = null;
+        let currentStep = 0;
+
+        function calculateOutputSize(inputSize, kernelSize, stride, padding) {
+            return Math.floor((inputSize - kernelSize + 2 * padding) / stride) + 1;
+        }
+
+        function createGrid(container, rows, cols, padding = 0) {
+            container.innerHTML = '';
+            const totalRows = rows + 2 * padding;
+            const totalCols = cols + 2 * padding;
+            container.style.gridTemplateColumns = `repeat(${totalCols}, 12px)`;
+            
+            const cells = [];
+            for (let i = 0; i < totalRows; i++) {
+                for (let j = 0; j < totalCols; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if (i < padding || i >= totalRows - padding || 
+                        j < padding || j >= totalCols - padding) {
+                        cell.classList.add('padded');
+                    }
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    container.appendChild(cell);
+                    cells.push(cell);
+                }
+            }
+            return { cells, totalRows, totalCols };
+        }
+
+        function highlightKernel(inputCells, totalCols, startRow, startCol, kernelSize) {
+            // Clear previous highlights
+            inputCells.forEach(cell => cell.classList.remove('kernel'));
+            
+            for (let i = 0; i < kernelSize; i++) {
+                for (let j = 0; j < kernelSize; j++) {
+                    const idx = (startRow + i) * totalCols + (startCol + j);
+                    if (inputCells[idx]) {
+                        inputCells[idx].classList.add('kernel');
+                    }
+                }
+            }
+        }
+
+        function highlightOutput(outputCells, totalCols, row, col) {
+            outputCells.forEach(cell => cell.classList.remove('output-highlight'));
+            const idx = row * totalCols + col;
+            if (outputCells[idx]) {
+                outputCells[idx].classList.add('output-highlight');
+            }
+        }
+
+        function updateVisualization() {
+            const kernelSize = parseInt(kernelSlider.value);
+            const stride = parseInt(strideSlider.value);
+            const padding = parseInt(paddingSlider.value);
+
+            kernelValue.textContent = kernelSize;
+            strideValue.textContent = stride;
+            paddingValue.textContent = padding;
+
+            const outputSize = calculateOutputSize(INPUT_SIZE, kernelSize, stride, padding);
+            const realOutputSize = calculateOutputSize(REAL_INPUT_SIZE, kernelSize, stride, padding);
+
+            const inputData = createGrid(inputGridEl, INPUT_SIZE, INPUT_SIZE, padding);
+            const outputData = createGrid(outputGridEl, outputSize, outputSize);
+
+            inputSizeEl.textContent = `${INPUT_SIZE}×${INPUT_SIZE} + padding=${padding}`;
+            outputSizeEl.textContent = `${outputSize}×${outputSize}`;
+
+            formulaEl.innerHTML = `
+                Output = ⌊(<span class="highlight">${REAL_INPUT_SIZE}</span> - <span class="highlight">${kernelSize}</span> + 2×<span class="highlight">${padding}</span>) / <span class="highlight">${stride}</span>⌋ + 1 
+                = ⌊${REAL_INPUT_SIZE - kernelSize + 2 * padding} / ${stride}⌋ + 1 
+                = <span class="result">${realOutputSize}</span>
+            `;
+
+            // Store data for animation
+            window.animData = {
+                inputCells: inputData.cells,
+                outputCells: outputData.cells,
+                inputTotalCols: inputData.totalCols,
+                outputTotalCols: outputData.totalCols,
+                outputSize,
+                kernelSize,
+                stride,
+                padding
+            };
+
+            currentStep = 0;
+            stepInfoEl.textContent = 'Click play to watch the kernel slide across the input';
+        }
+
+        function animateStep() {
+            const { inputCells, outputCells, inputTotalCols, outputTotalCols, 
+                    outputSize, kernelSize, stride } = window.animData;
+            
+            const totalSteps = outputSize * outputSize;
+            if (currentStep >= totalSteps) {
+                clearInterval(animationInterval);
+                animationInterval = null;
+                stepInfoEl.textContent = 'Animation complete!';
+                return;
+            }
+
+            const outRow = Math.floor(currentStep / outputSize);
+            const outCol = currentStep % outputSize;
+            const inRow = outRow * stride;
+            const inCol = outCol * stride;
+
+            highlightKernel(inputCells, inputTotalCols, inRow, inCol, kernelSize);
+            highlightOutput(outputCells, outputTotalCols, outRow, outCol);
+
+            stepInfoEl.textContent = `Step ${currentStep + 1}/${totalSteps}: Kernel at (${inRow}, ${inCol}) → Output (${outRow}, ${outCol})`;
+            currentStep++;
+        }
+
+        document.getElementById('playBtn').addEventListener('click', () => {
+            if (animationInterval) {
+                clearInterval(animationInterval);
+            }
+            currentStep = 0;
+            animationInterval = setInterval(animateStep, 300);
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            if (animationInterval) {
+                clearInterval(animationInterval);
+                animationInterval = null;
+            }
+            updateVisualization();
+        });
+
+        kernelSlider.addEventListener('input', updateVisualization);
+        strideSlider.addEventListener('input', updateVisualization);
+        paddingSlider.addEventListener('input', updateVisualization);
+
+        // Initial render
+        updateVisualization();
+    </script>
+</body>
+</html>
